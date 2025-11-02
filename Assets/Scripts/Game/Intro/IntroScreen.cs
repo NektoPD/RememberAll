@@ -55,6 +55,8 @@ namespace Game.Intro
             _introText.text = string.Empty;
             _introText.maxVisibleCharacters = 0;
             gameObject.SetActive(false);
+            
+            ShowIntro();
         }
 
         private void Update()

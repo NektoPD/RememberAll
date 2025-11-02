@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using UnityEngine;
 using TMPro;
+using UnityEngine.UI;
 
 public class PlayerAvatarEyesDual : MonoBehaviour
 {
@@ -46,6 +47,8 @@ public class PlayerAvatarEyesDual : MonoBehaviour
     private List<Vector2Int> revealOrder;
     private int revealedCount = 0;
 
+    public Slider Slider;
+
     private void Reset()
     {
         var tmps = GetComponentsInChildren<TMP_Text>();
@@ -66,7 +69,7 @@ public class PlayerAvatarEyesDual : MonoBehaviour
         ApplyRevealCount(0);
         UpdateTexts();
         
-        RevealAll();
+        Slider.onValueChanged.AddListener(SetProgress01);
     }
 
     private static void EnsureTMPSettings(TMP_Text t)
