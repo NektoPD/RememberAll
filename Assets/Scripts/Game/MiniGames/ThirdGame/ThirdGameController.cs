@@ -2,91 +2,71 @@
 using UnityEngine;
 using UnityEngine.Events;
 using DG.Tweening;
+using Game.Popups;
 
 namespace Game.MiniGames.ThirdGame
 {
     public class ThirdGameController : MonoBehaviour
     {
         [Header("Scene References")]
-        [Tooltip("Все ConnectionDot на сцене (в любом порядке).")]
         [SerializeField] private List<ConnectionDot> dots = new();
-
-        [Tooltip("Только те точки, которые должны быть помечены (win).")]
         [SerializeField] private List<ConnectionDot> winPattern = new();
-
-        [Tooltip("Контейнер, куда будут складываться LineRenderer-линии (опционально).")]
         [SerializeField] private Transform linesRoot;
-
-        [Tooltip("Префаб LineRenderer (пустой, без материалов — всё настроим кодом).")]
         [SerializeField] private LineRenderer linePrefab;
 
         [Header("Input Rules")]
-        [Tooltip("Ограничивать ли соединения соседством (если нет координат — оставь false).")]
         [SerializeField] private bool requireAdjacent = false;
 
         [Header("Line Style")]
-        [Tooltip("Материал постоянных линий (URP: Universal Render Pipeline/Unlit или Sprites/Default).")]
         [SerializeField] private Material lineMaterial;
-
-        [Tooltip("Материал превью-линии (можно тот же, просто будет полупрозрачной).")]
         [SerializeField] private Material previewMaterial;
-
-        [Tooltip("Слой сортировки для линий.")]
         [SerializeField] private string sortingLayerName = "Default";
-
-        [Tooltip("Порядок сортировки (чем больше, тем поверх).")]
         [SerializeField] private int sortingOrder = 100;
-
-        [Tooltip("Z-позиция линий (чуть ближе к камере, чем точки/фон).")]
         [SerializeField] private float lineZ = -1f;
 
-        [Header("Width: Auto from grid spacing")]
-        [Tooltip("Автоподбор толщины от шага между точками.")]
+        [Header("Width Settings")]
         [SerializeField] private bool autoWidth = true;
-
-        [Tooltip("Доля от шага между точками (0.02–0.35).")]
         [SerializeField, Range(0.02f, 0.35f)] private float widthFactor = 0.1f;
-
         [SerializeField] private float minWidth = 0.01f;
         [SerializeField] private float maxWidth = 0.08f;
-
-        [Header("Width: Screen-space emulation (optional)")]
-        [Tooltip("Эмулировать толщину в пикселях экрана (перекрывает autoWidth).")]
         [SerializeField] private bool screenSpaceWidth = false;
-
-        [Tooltip("Желаемая толщина линии в пикселях (если включен screenSpaceWidth).")]
         [SerializeField] private float pixels = 3f;
 
         [Header("Animation")]
-        [Tooltip("Время дорисовки линии (сек).")]
         [SerializeField] private float drawDuration = 0.15f;
-
-        [Tooltip("Скругление концов линии.")]
         [SerializeField] private int capVertices = 6;
-
-        [Tooltip("Скругление поворотов линии.")]
         [SerializeField] private int cornerVertices = 4;
 
         [Header("Events")]
         public UnityEvent OnWin;
 
-        // --- runtime ---
+        [Header("UI / Feedback")]
+        [SerializeField] private GamePopup _winPopup;
+        [SerializeField] private GamePopup _losePopup;
+        [SerializeField] private float _loseAutoHide = 1.5f;
+
+        [Tooltip("Что трясти при неправильном ответе (например, корень мини-игры).")]
+        [SerializeField] private Transform _failShakeTarget;
+
+        [Tooltip("Добавить тряску камеры при ошибке.")]
+        [SerializeField] private bool _shakeCamera = true;
+
+        [SerializeField] private float _failShakeDuration = 0.25f;
+        [SerializeField] private float _failShakeStrength = 0.3f;
+        [SerializeField] private int _failShakeVibrato = 15;
+        [SerializeField] private float _failShakeRandomness = 90f;
+
         private readonly List<LineRenderer> _drawnLines = new();
         private readonly HashSet<ConnectionDot> _marked = new();
         private ConnectionDot _dragStart;
         private LineRenderer _preview;
-
         private float _computedWidth = 0.04f;
 
-        private void Start()
-        {
-            RecomputeWidth();
-        }
+        private void Start() => RecomputeWidth();
 
         private void Update()
         {
             if (_dragStart == null) return;
-
             Vector3 world = GetMouseWorld();
             UpdatePreview(_dragStart.transform.position, world);
 
@@ -99,7 +79,6 @@ namespace Game.MiniGames.ThirdGame
             }
         }
 
-        // ===================== DRAG =====================
         public void BeginDragFromDot(ConnectionDot start)
         {
             _dragStart = start;
@@ -109,26 +88,20 @@ namespace Game.MiniGames.ThirdGame
         private void TryCommit(ConnectionDot a, ConnectionDot b)
         {
             if (b == null || b == a) return;
-
             if (requireAdjacent && !AreAdjacent(a, b))
             {
                 Shake(a.transform);
                 return;
             }
 
-            // линия
             SpawnLine(a.transform.position, b.transform.position);
-
-            // пометки
             a.Mark(); b.Mark();
             _marked.Add(a); _marked.Add(b);
         }
 
-        // ===================== CHECK / RESET =====================
         [ContextMenu("Check Result (Editor)")]
         public void CheckResult()
         {
-            // 1) Помеченные не должны выходить за пределы winPattern
             foreach (var d in _marked)
             {
                 if (!winPattern.Contains(d))
@@ -137,7 +110,7 @@ namespace Game.MiniGames.ThirdGame
                     return;
                 }
             }
-            // 2) Все из winPattern должны быть помечены
+
             foreach (var d in winPattern)
             {
                 if (d == null || !d.IsMarked)
@@ -147,7 +120,6 @@ namespace Game.MiniGames.ThirdGame
                 }
             }
 
-            // успех
             WinFeedback();
             OnWin?.Invoke();
         }
@@ -166,38 +138,70 @@ namespace Game.MiniGames.ThirdGame
             DestroyPreview();
         }
 
-        // ===================== LINES =====================
+        // ===================== FEEDBACK =====================
+        private void FailFeedback()
+        {
+            // 1️⃣ Тряска корня мини-игры
+            if (_failShakeTarget)
+            {
+                _failShakeTarget.DOKill();
+                _failShakeTarget.localScale = Vector3.one;
+                _failShakeTarget.DOShakeScale(
+                    _failShakeDuration,
+                    _failShakeStrength * 0.4f,
+                    _failShakeVibrato,
+                    _failShakeRandomness
+                );
+            }
+
+            // 2️⃣ Тряска камеры
+            if (_shakeCamera && Camera.main)
+            {
+                var cam = Camera.main.transform;
+                cam.DOKill();
+                var original = cam.localPosition;
+                cam.DOShakePosition(
+                        _failShakeDuration,
+                        _failShakeStrength,
+                        _failShakeVibrato,
+                        _failShakeRandomness,
+                        false, true
+                    )
+                    .OnComplete(() => cam.localPosition = original);
+            }
+
+            // 3️⃣ Попап поражения
+            if (_losePopup)
+                _losePopup.Show(null, _loseAutoHide);
+        }
+
+        private void WinFeedback()
+        {
+            if (_winPopup)
+                _winPopup.Show();
+        }
+
+        // ===================== Остальной код без изменений =====================
         private void SpawnLine(Vector3 a, Vector3 b)
         {
             if (!linePrefab) return;
-
             var lr = Instantiate(linePrefab, linesRoot ? linesRoot : transform);
-
-            // стиль
             ApplyLineStyle(lr, preview: false);
-
-            // позиции
             a.z = lineZ; b.z = lineZ;
             lr.positionCount = 2;
             lr.SetPosition(0, a);
             lr.SetPosition(1, a);
-
-            // анимация «дорисовки»
             Vector3 cur = a;
             DOTween.To(() => cur, v => { cur = v; lr.SetPosition(1, cur); }, b, drawDuration)
                    .SetEase(Ease.OutSine);
-
             _drawnLines.Add(lr);
         }
 
         private void CreatePreview(Vector3 start)
         {
             if (!linePrefab) return;
-
             _preview = Instantiate(linePrefab, linesRoot ? linesRoot : transform);
-
             ApplyLineStyle(_preview, preview: true);
-
             start.z = lineZ;
             _preview.positionCount = 2;
             _preview.SetPosition(0, start);
@@ -225,23 +229,17 @@ namespace Game.MiniGames.ThirdGame
             lr.textureMode = LineTextureMode.Stretch;
             lr.numCapVertices = capVertices;
             lr.numCornerVertices = cornerVertices;
-
             lr.material = preview && previewMaterial ? previewMaterial : lineMaterial;
-
             float baseW = screenSpaceWidth ? WorldWidthFromPixels(pixels) : _computedWidth;
             float width = baseW * ScaleCompensation(lr.transform);
-
             lr.startWidth = lr.endWidth = Mathf.Max(0.001f, width);
-
             var c = Color.white;
-            if (preview) c.a = 0.7f; // полупрозрачный превью
+            if (preview) c.a = 0.7f;
             lr.startColor = lr.endColor = c;
-
             lr.sortingLayerName = sortingLayerName;
             lr.sortingOrder = sortingOrder;
         }
 
-        // ===================== WIDTH / UTILS =====================
         private void RecomputeWidth()
         {
             if (screenSpaceWidth)
@@ -261,7 +259,6 @@ namespace Game.MiniGames.ThirdGame
             }
         }
 
-        // медиана минимальных расстояний между точками — оценка шага сетки
         private float EstimateSpacing()
         {
             if (dots == null || dots.Count < 2) return 0.1f;
@@ -304,7 +301,6 @@ namespace Game.MiniGames.ThirdGame
         {
             var cam = Camera.main;
             var p = Input.mousePosition;
-            // расстояние по Z до линии
             float z = cam ? Mathf.Abs((linesRoot ? linesRoot.position.z : transform.position.z) - cam.transform.position.z) : 10f;
             p.z = z;
             return cam ? cam.ScreenToWorldPoint(p) : Vector3.zero;
@@ -319,15 +315,8 @@ namespace Game.MiniGames.ThirdGame
 
         private static void Shake(Transform t) => t.DOShakeScale(0.18f, 0.12f, 10, 90);
 
-        // Заглушка: если хочешь ограничить соседством — реализуй здесь
-        private static bool AreAdjacent(ConnectionDot a, ConnectionDot b)
-        {
-            // В твоей упрощенной схеме координат может не быть — вернём true.
-            // Если в ConnectionDot есть (x,y), тут можно проверить Манхэттен-соседство: (|dx|+|dy|)==1
-            return true;
-        }
+        private static bool AreAdjacent(ConnectionDot a, ConnectionDot b) => true;
 
-        // На случай изменения параметров в инспекторе в режиме Play
         private void OnValidate()
         {
             if (Application.isPlaying) RecomputeWidth();
