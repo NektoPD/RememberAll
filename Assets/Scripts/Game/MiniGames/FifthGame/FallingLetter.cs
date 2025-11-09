@@ -5,27 +5,36 @@ namespace Game.MiniGames.FifthGame
 {
     [RequireComponent(typeof(RectTransform))]
     [RequireComponent(typeof(Rigidbody2D))]
+    [RequireComponent(typeof(Collider2D))]
     public class FallingLetter : MonoBehaviour
     {
         [SerializeField] private TMP_Text _text;
-        [SerializeField] private float _lifetime = 7f;
 
         private FifthGame _controller;
+        private LetterSpawner _owner;
         private Rigidbody2D _rb;
+        private Collider2D _col;
 
         void Awake()
         {
             _rb = GetComponent<Rigidbody2D>();
+            _col = GetComponent<Collider2D>();
             if (_text == null) _text = GetComponentInChildren<TMP_Text>(true);
-            Destroy(gameObject, _lifetime);
         }
 
-        // ✅ Новый метод вместо Init — чтобы не конфликтовал с MonoBehaviour.Init()
         public void SetLetterAndController(FifthGame controller, string letter)
         {
             _controller = controller;
-            if (_text != null)
-                _text.text = letter;
+            if (_text != null) _text.text = letter;
+        }
+
+        public void SetOwner(LetterSpawner owner) => _owner = owner;
+
+        public void ResetPhysics()
+        {
+            if (_rb == null) return;
+            _rb.linearVelocity = Vector2.zero;
+            _rb.angularVelocity = 0f;
         }
 
         public void SetRandomDrift(float minXVel, float maxXVel, float minRot, float maxRot)
@@ -39,12 +48,24 @@ namespace Game.MiniGames.FifthGame
 
         void OnTriggerEnter2D(Collider2D other)
         {
-            if (!other.TryGetComponent(out PlayerBucket playerBucket)) return;
+            // Попадание в ведро
+            if (other.CompareTag("Player"))
+            {
+                bool isCorrect = _text != null && _text.text == "Д";
+                _controller?.ResolveCatch(isCorrect);
+                ReturnToPool();
+            }
+        }
 
-            bool isCorrect = _text != null && _text.text == "Д";
-            _controller?.ResolveCatch(isCorrect);
+        /// <summary>Вернуть объект в пул (например, из ловушки промахов).</summary>
+        public void ReturnToPool() => _owner?.ReleaseToPool(this);
 
-            Destroy(gameObject);
+        /// <summary>Сброс состояния перед возвращением в пул.</summary>
+        public void OnDespawn()
+        {
+            ResetPhysics();
+            // Если нужно — очистить текст/эффекты
+            // if (_text) _text.text = string.Empty; // обычно не требуется
         }
     }
 }
