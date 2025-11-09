@@ -32,5 +32,12 @@ namespace Game.SaveSystem
             PlayerPrefs.SetString(Key, json);
             PlayerPrefs.Save();
         }
+
+        /// <summary>Полностью удаляет данные игрока из PlayerPrefs.</summary>
+        public static void DeleteAll()
+        {
+            PlayerPrefs.DeleteKey(Key);
+            PlayerPrefs.Save();
+        }
     }
 }

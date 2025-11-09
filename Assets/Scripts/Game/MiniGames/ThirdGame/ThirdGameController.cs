@@ -61,6 +61,9 @@ namespace Game.MiniGames.ThirdGame
         private ConnectionDot _dragStart;
         private LineRenderer _preview;
         private float _computedWidth = 0.04f;
+        
+        public UnityEvent OnWinEvent = new UnityEvent();
+        public UnityEvent OnLoseEvent = new UnityEvent();
 
         private void Start() => RecomputeWidth();
 
@@ -173,12 +176,16 @@ namespace Game.MiniGames.ThirdGame
             // 3️⃣ Попап поражения
             if (_losePopup)
                 _losePopup.Show(null, _loseAutoHide);
+            
+            OnLoseEvent?.Invoke();
         }
 
         private void WinFeedback()
         {
             if (_winPopup)
                 _winPopup.Show();
+            
+            OnWinEvent?.Invoke();
         }
 
         // ===================== Остальной код без изменений =====================

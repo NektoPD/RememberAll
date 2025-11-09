@@ -83,5 +83,12 @@ namespace Game.SaveSystem
 
             return final;
         }
+
+        /// <summary>Полностью удаляет прогресс уровней из PlayerPrefs.</summary>
+        public static void DeleteAll()
+        {
+            PlayerPrefs.DeleteKey(Key);
+            PlayerPrefs.Save();
+        }
     }
 }

@@ -11,7 +11,7 @@ namespace Game.MiniGames.FifthGame
 
         [Header("Letters")]
         public string correctLetter = "Д";
-        public string[] baitLetters = new[] { "Б", "Л", "Р", "А", "О", "П", "Г", "Ж" };
+        public string[] baitLetters = new[] { "Б", "Л", "Р", "Е", "О", "П", "Г", "Ж" };
 
         [Header("Spawn")]
         public float spawnEvery = 0.9f;

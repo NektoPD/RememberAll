@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Game.MiniGames.GameElements;
 using UnityEngine;
+using UnityEngine.Events;
 
 namespace Game.MiniGames
 {
@@ -37,6 +38,8 @@ namespace Game.MiniGames
         };
 
         public System.Action OnWin;
+        
+        public UnityEvent OnWinEvent = new UnityEvent();
 
         private System.Action<GameBlock> _onConnChangedHandler;
 
@@ -85,6 +88,7 @@ namespace Game.MiniGames
             {
                 Debug.Log("WIN: Собрана буква А!");
                 OnWin?.Invoke();
+                OnWinEvent?.Invoke(); // ← A
                 // если хочешь — отключи дальнейшую проверку:
                 // _leftLeg.ConnectionsChanged   -= _onConnChangedHandler;
                 // _rightLeg.ConnectionsChanged  -= _onConnChangedHandler;

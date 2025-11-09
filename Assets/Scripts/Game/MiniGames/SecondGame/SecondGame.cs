@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using UnityEngine;
 using DG.Tweening;
+using UnityEngine.Events;
 
 namespace Game.MiniGames.SecondGame
 {
@@ -41,6 +42,8 @@ namespace Game.MiniGames.SecondGame
         private readonly List<TextButtonElement> _spawned = new();
         private bool _isRunning;
         private bool _isFinished;
+        
+        public UnityEvent OnWinEvent = new UnityEvent();
 
         private void Awake()
         {
@@ -174,6 +177,8 @@ namespace Game.MiniGames.SecondGame
                 _winOverlay.gameObject.SetActive(true);
                 _winOverlay.DOFade(1f, 0.35f);
             }
+            
+            OnWinEvent?.Invoke();
         }
 
         private void ClearAll()

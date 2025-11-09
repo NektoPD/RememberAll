@@ -1,6 +1,7 @@
 using DG.Tweening;
 using TMPro;
 using UnityEngine;
+using UnityEngine.Events;
 
 namespace Game.MiniGames.FourthGame
 {
@@ -42,6 +43,9 @@ namespace Game.MiniGames.FourthGame
         private bool _tutorialShown; // показываем только один раз за сессию
 
         private Tween _tutorialTween;
+        
+        public UnityEvent OnWinEvent = new UnityEvent();
+        public UnityEvent OnLoseEvent = new UnityEvent();
 
         private void Awake()
         {
@@ -88,6 +92,7 @@ namespace Game.MiniGames.FourthGame
             // просто показываем попап; после нажатия кнопки он вызовет Hide(),
             // событие Hidden подхватит перезапуск
             _losePopup?.Show("Нужно попробовать еще раз", 1.5f);
+            OnLoseEvent?.Invoke();
         }
 
         // в OnBallOnPlatform(bool on)
@@ -159,6 +164,7 @@ namespace Game.MiniGames.FourthGame
             _currentBall?.SetControlEnabled(false);
             if (_currentBall != null) _currentBall.FadeOutAndDestroy();
             _winPopup?.Show();
+            OnWinEvent?.Invoke(); 
         }
 
         private void RestartGame()
