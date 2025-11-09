@@ -1,7 +1,10 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using UnityEngine;
 using DG.Tweening;
 using UnityEngine.Events;
+using UnityEngine.UI;
+using Random = UnityEngine.Random;
 
 namespace Game.MiniGames.SecondGame
 {
@@ -44,6 +47,9 @@ namespace Game.MiniGames.SecondGame
         private bool _isFinished;
         
         public UnityEvent OnWinEvent = new UnityEvent();
+        [SerializeField] private Button _backButton;
+
+        public event Action OnBackClicked;
 
         private void Awake()
         {
@@ -51,6 +57,8 @@ namespace Game.MiniGames.SecondGame
                 _alphabet = "АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ";
             if (!_alphabet.Contains(_targetChar.ToString()))
                 _alphabet = _alphabet.Insert(1, _targetChar.ToString());
+            
+            _backButton.onClick.AddListener(() => OnBackClicked?.Invoke());
         }
 
         private void Start()

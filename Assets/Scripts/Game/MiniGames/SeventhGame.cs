@@ -1,10 +1,14 @@
 // SeventhGame.cs
+
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Game.MiniGames.GameElements;
 using Game.Popups;
 using UnityEngine;
 using UnityEngine.Events;
+using UnityEngine.UI;
+using Random = UnityEngine.Random;
 
 namespace Game.MiniGames
 {
@@ -44,6 +48,10 @@ namespace Game.MiniGames
 
         [Header("Попап победы")]
         [SerializeField] private GamePopup _winPopup;
+        
+        [SerializeField] private Button _backButton;
+
+        public event Action OnBackClicked;
 
         public System.Action OnWin;
         
@@ -77,6 +85,8 @@ namespace Game.MiniGames
             _prevLeftPos  = _leftSlash.transform.position;
             _prevRightPos = _rightSlash.transform.position;
             _prevVertPos  = _vertical.transform.position;
+            
+            _backButton.onClick.AddListener(() => OnBackClicked?.Invoke());
         }
 
         private void Start()

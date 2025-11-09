@@ -1,9 +1,11 @@
+using System;
 using System.Linq;
 using TMPro;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using DG.Tweening;
 using UnityEngine.Events;
+using UnityEngine.UI;
 
 namespace Game.MiniGames.FifthGame
 {
@@ -38,6 +40,10 @@ namespace Game.MiniGames.FifthGame
         
         public UnityEvent OnWinEvent = new UnityEvent();
         public UnityEvent OnLoseEvent = new UnityEvent();
+        
+        [SerializeField] private Button _backButton;
+
+        public event Action OnBackClicked;
 
         private void Awake()
         {
@@ -54,6 +60,8 @@ namespace Game.MiniGames.FifthGame
 
             if (_loseScreen != null)
                 _loseScreen.Hidden += OnLoseHidden;
+            
+            _backButton.onClick.AddListener(() => OnBackClicked?.Invoke());
         }
 
         private void Start()

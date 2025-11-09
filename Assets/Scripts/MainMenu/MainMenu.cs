@@ -1,5 +1,6 @@
 ﻿using DG.Tweening;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 namespace MainMenu
@@ -13,10 +14,12 @@ namespace MainMenu
         private void Awake()
         {
             _settingsButton.onClick.AddListener(OnSettingsClicked);
+            _playButton.onClick.AddListener(OnPlayButtonCLicked);
         }
 
         private void OnDestroy()
         {
+            _playButton.onClick.RemoveAllListeners();
             _settingsButton.onClick.RemoveListener(OnSettingsClicked);
         }
 
@@ -24,6 +27,11 @@ namespace MainMenu
         {
             if (_menuPopup == null) return;
             _menuPopup.Open(); // внутри попап сам сделает SetActive + анимацию
+        }
+
+        private void OnPlayButtonCLicked()
+        {
+            _playButton.onClick.AddListener((() => SceneManager.LoadScene("GameScene")));
         }
     }
 }

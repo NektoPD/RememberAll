@@ -1,7 +1,10 @@
+using System;
 using DG.Tweening;
 using TMPro;
 using UnityEngine;
 using UnityEngine.Events;
+using UnityEngine.UI;
+using Random = UnityEngine.Random;
 
 namespace Game.MiniGames.FourthGame
 {
@@ -34,6 +37,10 @@ namespace Game.MiniGames.FourthGame
         [SerializeField] private Vector2 _nudgeImpulseRange = new Vector2(0.45f, 1.25f); // сила по X
         [SerializeField] private float _nudgeUpward = 0.15f; // небольшой импульс вверх (0 = выключить)
 
+        [SerializeField] private Button _backButton;
+
+        public event Action OnBackClicked;
+        
         private float _nextNudgeAt = -1f;
         
         private Ball _currentBall;

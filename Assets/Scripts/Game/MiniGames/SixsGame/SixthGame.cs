@@ -1,10 +1,12 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 using DG.Tweening;
 using UnityEngine.UI;
 using TMPro;
 using Game.Popups;
-using UnityEngine.Events; // для GamePopup
+using UnityEngine.Events;
+using Random = UnityEngine.Random; // для GamePopup
 
 namespace Game.MiniGames.SixthGame
 {
@@ -52,6 +54,10 @@ namespace Game.MiniGames.SixthGame
         [SerializeField] private Color _normalTextColor = Color.white;
         [SerializeField] private Color _hintTextColor = new Color(1f, 0.95f, 0.4f);
         [SerializeField] private Color _winTint = new Color(0.3f, 0.9f, 0.5f, 1f);
+        
+        [SerializeField] private Button _backButton;
+
+        public event Action OnBackClicked;
 
         public UnityEvent OnWinEvent = new UnityEvent();
         public UnityEvent OnLoseEvent = new UnityEvent();
@@ -68,6 +74,8 @@ namespace Game.MiniGames.SixthGame
 
             if (_hintButton != null)
                 _hintButton.onClick.AddListener(TryHint);
+            
+            _backButton.onClick.AddListener(() => OnBackClicked?.Invoke());
         }
 
         private void Start()

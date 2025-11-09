@@ -4,6 +4,12 @@ using System.Linq;
 using DG.Tweening;
 using Game.Intro;
 using Game.MainGame.DTO;
+using Game.MiniGames;
+using Game.MiniGames.FifthGame;
+using Game.MiniGames.FourthGame;
+using Game.MiniGames.SecondGame;
+using Game.MiniGames.SixthGame;
+using Game.MiniGames.ThirdGame;
 using Game.SaveSystem;
 using Game.UI;
 using TMPro;
@@ -31,12 +37,30 @@ namespace Game.MainGame
         [Header("Game Flow Screens")]
         [SerializeField] private GameLostScreen _lostScreen;
         [SerializeField] private GameWinScreen  _winScreen;
+        
+        [Header("Overall Progress UI")]
+        [SerializeField] private Image _filledImage;          // уже добавляли
+        [SerializeField] private float _progressFillDuration = 0.3f;
+        [SerializeField] private TMP_Text _percentageText;    // НОВОЕ: текст процентов
+
+        [Header("Avatar Eyes (progress reveal)")]
+        [SerializeField] private PlayerAvatarEyesDual _eyes;  // НОВОЕ: ссылка на глаза
+        
 
         [Header("Lives")]
         [SerializeField] private int _startLives = 5;
 
         [Header("MiniGames (1..7)")]
         [SerializeField] private MiniGameRef[] _miniGames = new MiniGameRef[7];
+        
+        [Header("Game Behaviours (direct refs)")]
+        [SerializeField] private FirstGame _firstGame;
+        [SerializeField] private SecondGame _secondGame;
+        [SerializeField] private ThirdGameController _thirdGame;
+        [SerializeField] private FourthGame _fourthGame;
+        [SerializeField] private FifthGame _fifthGame;
+        [SerializeField] private SixthGame _sixthGame;
+        [SerializeField] private SeventhGame _seventhGame;
 
         private List<LevelData> _levels;
         private int _currentGameIndex = -1;
@@ -73,6 +97,33 @@ namespace Game.MainGame
             public event Action Fired;
             public void Raise() => Fired?.Invoke();
         }
+        
+        private int GetCompletedCount()
+        {
+            if (_levels == null) return 0;
+            return _levels.Count(l => l != null && l.Progress >= 1f);
+        }
+        
+        private void UpdateOverallProgressImage(bool animate = true)
+        {
+            if (_filledImage == null) return;
+
+            float p = CalculateProgress01();
+            _filledImage.DOKill();
+
+            if (animate)
+                _filledImage.DOFillAmount(p, _progressFillDuration);
+            else
+                _filledImage.fillAmount = p;
+        }
+        
+        private float CalculateProgress01()
+        {
+            if (_levels == null || _levels.Count == 0) return 0f;
+            float sum = 0f;
+            foreach (var l in _levels) sum += Mathf.Clamp01(l.Progress);
+            return sum / _levels.Count;
+        }
 
         private void Awake()
         {
@@ -89,14 +140,9 @@ namespace Game.MainGame
             {
                 SetMainElementsActive(true, immediate: true);
             }
-
-            // 2) Данные уровней
+            
             _levels = LevelDataSaver.LoadOrCreateCompleteSet();
-
-            // Первый уровень открыт, остальные — как в сейве
             EnsureFirstUnlocked(_levels);
-
-            // 3) Привязка кнопок
             BindLevelButtons(_levels);
 
             // 4) Жизни
@@ -105,10 +151,24 @@ namespace Game.MainGame
 
             // 5) Игры — выключить все и навесить события
             InitMiniGames();
+            SubscribeToGameEvents();
 
             // 6) Экран проигрыша/победы — подписки
             if (_lostScreen) _lostScreen.Finished += OnLostScreenFinished;
             if (_winScreen)  _winScreen.Finished  += OnWinScreenFinished;
+            
+            _firstGame.OnBackClicked += () => CloseMiniGame(0);
+            _secondGame.OnBackClicked += () => CloseMiniGame(1);
+            _thirdGame.OnBackClicked += () => CloseMiniGame(2);
+            _fourthGame.OnBackClicked += () => CloseMiniGame(3);
+            _fifthGame.OnBackClicked += () => CloseMiniGame(4);
+            _sixthGame.OnBackClicked += () => CloseMiniGame(5);
+            _seventhGame.OnBackClicked += () => CloseMiniGame(6);
+            
+            _levels = LevelDataSaver.LoadOrCreateCompleteSet();
+            EnsureFirstUnlocked(_levels);
+            BindLevelButtons(_levels);
+            UpdateOverallProgressUI(false); 
         }
 
         private void OnDestroy()
@@ -117,6 +177,86 @@ namespace Game.MainGame
             if (_lostScreen  != null) _lostScreen.Finished -= OnLostScreenFinished;
             if (_winScreen   != null) _winScreen.Finished  -= OnWinScreenFinished;
             UnsubscribeMiniGames();
+            UnsubscribeGameEvents();
+        }
+        
+        private void UpdateOverallProgressUI(bool animate = true)
+        {
+            // 1) Fill Image
+            if (_filledImage)
+            {
+                float p = CalculateProgress01();
+                _filledImage.DOKill();
+                if (animate)
+                    _filledImage.DOFillAmount(p, _progressFillDuration);
+                else
+                    _filledImage.fillAmount = p;
+            }
+
+            // 2) Percentage text
+            if (_percentageText)
+            {
+                int percent = Mathf.RoundToInt(CalculateProgress01() * 100f);
+                // Мягкое обновление числа (опционально — можно писать напрямую)
+                if (animate)
+                {
+                    // Считаем текущее значение из текста, если удастся
+                    int current = 0;
+                    int.TryParse(_percentageText.text.Replace("%","").Trim(), out current);
+                    DOTween.Kill(_percentageText);
+                    DOTween
+                        .To(() => current, v =>
+                        {
+                            current = v;
+                            _percentageText.text = $"{current}%";
+                        }, percent, _progressFillDuration)
+                        .SetTarget(_percentageText);
+                }
+                else
+                {
+                    _percentageText.text = $"{percent}%";
+                }
+            }
+
+            // 3) Глаза — открываемся «ступеньками» по количеству завершённых игр
+            if (_eyes != null && _levels != null && _levels.Count > 0)
+            {
+                int completed = GetCompletedCount();
+                _eyes.SetProgressByLevels(completed, _levels.Count);
+                // Альтернатива (гладко): _eyes.SetProgress01(CalculateProgress01());
+            }
+        }
+        
+        private void UnsubscribeGameEvents()
+        {
+            if (_firstGame)   _firstGame.OnWinEvent.RemoveAllListeners();
+            if (_secondGame)  _secondGame.OnWinEvent.RemoveAllListeners();
+
+            if (_thirdGame)
+            {
+                _thirdGame.OnWinEvent.RemoveAllListeners();
+                _thirdGame.OnLoseEvent.RemoveAllListeners();
+            }
+
+            if (_fourthGame)
+            {
+                _fourthGame.OnWinEvent.RemoveAllListeners();
+                _fourthGame.OnLoseEvent.RemoveAllListeners();
+            }
+
+            if (_fifthGame)
+            {
+                _fifthGame.OnWinEvent.RemoveAllListeners();
+                _fifthGame.OnLoseEvent.RemoveAllListeners();
+            }
+
+            if (_sixthGame)
+            {
+                _sixthGame.OnWinEvent.RemoveAllListeners();
+                _sixthGame.OnLoseEvent.RemoveAllListeners();
+            }
+
+            if (_seventhGame) _seventhGame.OnWinEvent.RemoveAllListeners();
         }
 
         // ---------- Intro / Main visibility ----------
@@ -239,9 +379,6 @@ namespace Game.MainGame
                 mg.SetActive(false);
                 if (mg.canvas) mg.canvas.alpha = 0f;
 
-                // подписки
-                TryWireGameEvents(mg, i);
-
                 if (mg.closeButton)
                 {
                     int idx = i;
@@ -260,40 +397,12 @@ namespace Game.MainGame
                 if (mg?.closeButton != null) mg.closeButton.onClick.RemoveAllListeners();
             }
         }
-
-        private void TryWireGameEvents(MiniGameRef mg, int index)
+        
+        private void OnBackClickedFromGame(int index)
         {
-            if (!mg.gameBehaviour) return;
-
-            // Ищем поля UnityEvent OnWinEvent/OnLoseEvent с помощью рефлексии (чтобы не лезть в типы)
-            var t = mg.gameBehaviour.GetType();
-
-            // Win
-            var winEvtField = t.GetField("OnWinEvent");
-            if (winEvtField != null)
-            {
-                var unityEvent = winEvtField.GetValue(mg.gameBehaviour) as UnityEvent;
-                if (unityEvent != null)
-                {
-                    mg.winProxy ??= new UnityEventProxy();
-                    unityEvent.AddListener(() => mg.winProxy.Raise());
-                    mg.winProxy.Fired += () => OnGameWon(index);
-                }
-            }
-            // Lose
-            var loseEvtField = t.GetField("OnLoseEvent");
-            if (loseEvtField != null)
-            {
-                var unityEvent = loseEvtField.GetValue(mg.gameBehaviour) as UnityEvent;
-                if (unityEvent != null)
-                {
-                    mg.loseProxy ??= new UnityEventProxy();
-                    unityEvent.AddListener(() => mg.loseProxy.Raise());
-                    mg.loseProxy.Fired += () => OnGameLost(index);
-                }
-            }
+            CloseMiniGame(index); // уже есть логика фейда
         }
-
+        
         private void OpenMiniGame(int index)
         {
             if (_isTransitioning) return;
@@ -316,19 +425,56 @@ namespace Game.MainGame
             });
         }
 
+        private void SubscribeToGameEvents()
+        {
+            // индекс должен соответствовать порядку LevelType и MiniGames массива
+            if (_firstGame)   _firstGame.OnWinEvent.AddListener(() => OnGameWon(0));
+
+            if (_secondGame)  _secondGame.OnWinEvent.AddListener(() => OnGameWon(1));
+            // у SecondGame поражения нет — не подписываемся
+
+            if (_thirdGame)
+            {
+                _thirdGame.OnWinEvent.AddListener(() => OnGameWon(2));
+                _thirdGame.OnLoseEvent.AddListener(() => OnGameLost(2));
+            }
+
+            if (_fourthGame)
+            {
+                _fourthGame.OnWinEvent.AddListener(() => OnGameWon(3));
+                _fourthGame.OnLoseEvent.AddListener(() => OnGameLost(3));
+            }
+
+            if (_fifthGame)
+            {
+                _fifthGame.OnWinEvent.AddListener(() => OnGameWon(4));
+                _fifthGame.OnLoseEvent.AddListener(() => OnGameLost(4));
+            }
+
+            if (_sixthGame)
+            {
+                _sixthGame.OnWinEvent.AddListener(() => OnGameWon(5));
+                _sixthGame.OnLoseEvent.AddListener(() => OnGameLost(5));
+            }
+
+            if (_seventhGame) _seventhGame.OnWinEvent.AddListener(() => OnGameWon(6));
+        }
+        
         private void CloseMiniGame(int index)
         {
             if (_isTransitioning) return;
             _isTransitioning = true;
 
             var mg = _miniGames[index];
+
             FadeCanvas(mg.canvas, false, () =>
             {
                 mg.SetActive(false);
                 _currentGameIndex = -1;
 
-                // показать GameScreen
+                // показываем GameScreen
                 SetMainElementsActive(true, immediate: true);
+
                 FadeCanvas(_screenCanvas, true, () =>
                 {
                     _isTransitioning = false;
@@ -355,10 +501,13 @@ namespace Game.MainGame
             }
 
             RefreshAllLevelButtons();
+            UpdateOverallProgressUI(true);
 
             // Закрыть игру и вернуть главную
             if (_currentGameIndex == index) CloseMiniGame(index);
 
+            UpdateOverallProgressImage(true);
+            
             // Проверить «все пройдены?»
             if (AllLevelsCompleted())
             {

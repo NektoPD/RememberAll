@@ -1,9 +1,14 @@
 ﻿// FirstGame.cs
+
+using System;
 using System.Collections.Generic;
 using System.Linq;
+using DG.Tweening;
 using Game.MiniGames.GameElements;
 using UnityEngine;
 using UnityEngine.Events;
+using UnityEngine.UI;
+using Random = UnityEngine.Random;
 
 namespace Game.MiniGames
 {
@@ -36,8 +41,13 @@ namespace Game.MiniGames
             new Color32(0x8A,0x6D,0x4F,0xFF), // #8A6D4F Olive
             new Color32(0xD9,0xC8,0xA9,0xFF)  // #D9C8A9 Mist
         };
+        
+        [SerializeField] private Button _backButton;
+        public System.Action OnClosed;
 
         public System.Action OnWin;
+        
+        public event Action OnBackClicked;
         
         public UnityEvent OnWinEvent = new UnityEvent();
 
@@ -51,6 +61,8 @@ namespace Game.MiniGames
                 enabled = false; return;
             }
 
+            _backButton.onClick.AddListener(() => OnBackClicked?.Invoke());
+            
             _onConnChangedHandler = OnBlockConnectionsChanged;
             _leftLeg.ConnectionsChanged   += _onConnChangedHandler;
             _rightLeg.ConnectionsChanged  += _onConnChangedHandler;
@@ -73,7 +85,7 @@ namespace Game.MiniGames
         }
 
         private void OnBlockConnectionsChanged(GameBlock _) => ValidateWin();
-
+        
         // ——— Победа: перекладина касается обеих опор, и наоборот (двусторонне) ———
         private void ValidateWin()
         {

@@ -1,8 +1,10 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Events;
 using DG.Tweening;
 using Game.Popups;
+using UnityEngine.UI;
 
 namespace Game.MiniGames.ThirdGame
 {
@@ -62,8 +64,17 @@ namespace Game.MiniGames.ThirdGame
         private LineRenderer _preview;
         private float _computedWidth = 0.04f;
         
+        [SerializeField] private Button _backButton;
+
+        public event Action OnBackClicked;
+        
         public UnityEvent OnWinEvent = new UnityEvent();
         public UnityEvent OnLoseEvent = new UnityEvent();
+
+        private void Awake()
+        {
+            _backButton.onClick.AddListener(() => OnBackClicked?.Invoke());
+        }
 
         private void Start() => RecomputeWidth();
 
